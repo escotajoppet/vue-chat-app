@@ -92,7 +92,9 @@ export default {
     },
 
     isTyping(e){
-      this.socket.emit('IS_TYPING', this.user);
+      if(e.key != 'Enter'){
+        this.socket.emit('IS_TYPING', this.user);
+      }
     },
 
     isNotTyping(e){
