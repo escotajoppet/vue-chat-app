@@ -3,13 +3,12 @@ const app = express();
 let users = [];
 
 const server = app.listen(3001, () => {
-    console.log('server running on port 3001');
+  console.log('server running on port 3001');
 });
 
 const io = require('socket.io')(server);
 
 io.on('connection', (socket) => {
-  
   socket.on('SIGN_IN', (data) => {
     let user_data = { "user": data, "socket_id": socket.id };
     io.emit('SIGNED_IN_USER', user_data);
