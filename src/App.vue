@@ -1,6 +1,6 @@
 <template>
- <div class="row">
-    <div class="container" style="padding: 0;">
+  <div class="row">
+    <div class="container">
       <div v-if="user.length <= 0">
         <div class="card mt-3">
           <div class="card-body">
@@ -19,42 +19,39 @@
 
       <div v-show="user" class="card mt-3">
         <div class="row">
-          <div class="col-3" style="border-right: 1px solid #eee; padding: 0;">
+          <div class="col-3" id="users-list">
             <ul>
-              <li v-for="user in users" style="list-style: none;">{{ user }}</li>
+              <li v-for="user_data in users" v-show="user != user_data.user.user">
+                <a href="#" class="btn-block users" v-on:click="tagUser(user_data.user.user)">{{ user_data.user.user }}</a>
+              </li>
             </ul>
           </div>
           <div class="col-9" style="padding-left: 0;">
-            <div class="card-body">
+            <div class="card-body" id="group-chat-container">
               <div class="card-title">
-                <h3>Chat Group</h3>
+                <h6>Vue JS Chat App</h6>
                 <hr>
               </div>
 
-              <div class="card-body">
+              <div class="card-body" id="messages">
                 <div class="messages" v-for="(msg, index) in messages" :key="index">
                   <p><span class="font-weight-bold">{{ msg.user }}: </span>{{ msg.message }}</p>
                 </div>
-
-                <p v-if="typing.length">{{ typing.join(', ') }} is typing...</p>
               </div>
+
+              <p v-if="typing.length">{{ typing.join(', ') }} is typing...</p>
             </div>
 
             <div class="card-footer">
               <form @submit.prevent="sendMessage">
-                <div class="gorm-group pb-3">
-                  <label for="message">Message:</label>
-                  <input type="text" v-model="message" v-on:keyup="isTyping" class="form-control">
-                </div>
-                
-                <button type="submit" class="btn btn-success">Send</button>
+                <input type="text" v-model="message" v-on:keyup="isTyping" class="form-control">
               </form>
             </div>
           </div>
         </div>
       </div>
     </div>
- </div>
+  </div>
 </template>
 
 <script>
@@ -64,6 +61,7 @@ export default {
   data() {
     return {
       user: '',
+      socket_id: '',
       message: '',
       socket : io('localhost:3001')
     }
@@ -83,12 +81,14 @@ export default {
     sendMessage(e) {
       e.preventDefault();
       
-      this.socket.emit('SEND_MESSAGE', {
-        user: this.user,
-        message: this.message
-      });
+      if(this.message !== ''){
+        this.socket.emit('SEND_MESSAGE', {
+          user: this.user,
+          message: this.message
+        });
 
-      this.message = ''
+        this.message = ''
+      }
     },
 
     isTyping(e){
@@ -107,6 +107,16 @@ export default {
       this.socket.emit('SIGN_IN', {
         user: this.user
       });
+    },
+
+    logOutUser(){
+      this.socket.emit('DISCONNECT', {
+        user: this.user
+      });
+    },
+
+    tagUser(user){
+      this.message += `<span v-html class="user-tag">@${user}</span>`;
     }
   },
   mounted() {
@@ -128,12 +138,62 @@ export default {
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
-      this.$store.state.users.push(data.user);
+      this.socket_id = data.socket_id
+      this.$store.state.users.push(data);
+    });
+
+    this.socket.on('DISCONNECTED_USER', (data) => {
+      for (var i = 0; i < this.$store.state.users.length; i++){
+        if (this.$store.state.users[i].socket_id === data) {
+          this.$store.state.users.splice(i, 1);
+          break;
+        }
+      }
     });
   }
 }
 </script>
 
 <style scoped>
-  
+  li{
+    padding: 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  ul{
+    padding-left: 15px;
+    text-align: center;
+    list-style: none;
+  }
+
+  container{
+    padding: 0;
+  }
+
+  #users-list{
+    border-right: 1px solid #eee; 
+    padding: 0;
+  }
+
+  .group-chat-container{
+    height: 320px;
+  }
+
+  #messages{
+    overflow-y: scroll;
+    height: 215px;
+  }
+
+  .users{
+    padding: 10px;
+    text-decoration: none;
+  }
+
+  [type=text]{
+    text-align: right;
+  }
+
+  .user-tag{
+    color: lightgreen;
+  }
 </style>

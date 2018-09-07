@@ -16,7 +16,6 @@ io.on('connection', (socket) => {
   
   socket.on('DISCONNECT', (data) => {
     let user_data = { "user": data, "socket_id": socket.id };
-    io.emit('UPDATE_USERS', data);
     io.emit('DISCONNECTED_USER', user_data);
   });
   
@@ -27,6 +26,10 @@ io.on('connection', (socket) => {
 
   socket.on('IS_TYPING', (data) => {
     socket.broadcast.emit('ADD_TYPING', data);
+  });
+
+  socket.on('disconnect', function() {
+    io.emit('DISCONNECTED_USER', socket.id);
   });
 });
 
