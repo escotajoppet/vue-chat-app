@@ -22,14 +22,11 @@ io.on('connection', (socket) => {
   
   socket.on('SEND_MESSAGE', (data) => {
     io.emit('MESSAGE', data);
+    io.emit('REMOVE_TYPING', data);
   });
 
   socket.on('IS_TYPING', (data) => {
     socket.broadcast.emit('ADD_TYPING', data);
-  });
-
-  socket.on('IS_NOT_TYPING', (data) => {
-    io.emit('REMOVE_TYPING', data);
   });
 });
 
