@@ -21,10 +21,10 @@
         <div class="row">
           <div class="col-3" style="border-right: 1px solid #eee; padding: 0;">
             <ul>
-              <li v-for="user in users">{{ user }}</li>
+              <li v-for="user in users" style="list-style: none;">{{ user }}</li>
             </ul>
           </div>
-          <div class="col-9">
+          <div class="col-9" style="padding-left: 0;">
             <div class="card-body">
               <div class="card-title">
                 <h3>Chat Group</h3>
@@ -40,20 +40,11 @@
               </div>
             </div>
 
-            <div style="padding: 20px;">
-              <hr>
-              users: {{ users.join(', ') }}
-              <br>
-              typing: {{ typing.join(', ') }}
-              <br>
-              messages: {{ messages.join(', ') }}
-            </div>
-
             <div class="card-footer">
               <form @submit.prevent="sendMessage">
                 <div class="gorm-group pb-3">
                   <label for="message">Message:</label>
-                  <input type="text" v-model="message" v-on:keypress="isTyping" class="form-control">
+                  <input type="text" v-model="message" v-on:keyup="isTyping" class="form-control">
                 </div>
                 
                 <button type="submit" class="btn btn-success">Send</button>
@@ -96,24 +87,16 @@ export default {
         user: this.user,
         message: this.message
       });
-      
-      this.socket.emit('IS_NOT_TYPING', {
-        user: this.user
-      });
 
       this.message = ''
     },
 
     isTyping(e){
-      this.socket.emit('IS_TYPING', {
-        user: this.user
-      });
+      this.socket.emit('IS_TYPING', this.user);
     },
 
     isNotTyping(e){
-      this.socket.emit('IS_NOT_TYPING', {
-        user: this.user
-      });
+      this.socket.emit('IS_NOT_TYPING', this.user);
     },
 
     logInUser(){
@@ -130,11 +113,16 @@ export default {
     });
 
     this.socket.on('ADD_TYPING', (data) => {
-      
+      if(!this.$store.state.typing.includes(data)){
+        this.$store.state.typing.push(data);
+      }
     });
 
     this.socket.on('REMOVE_TYPING', (data) => {
-      
+      if(this.$store.state.typing.includes(data.user)){
+        var i = this.$store.state.typing.indexOf(data.user);
+        this.$store.state.typing.splice(i, 1);
+      }
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
