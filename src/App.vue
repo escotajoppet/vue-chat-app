@@ -83,6 +83,8 @@
 
 <script>
 import io from 'socket.io-client';
+import { mapActions } from 'vue';
+import { mapGetters } from 'vue';
 
 export default {
   data() {
@@ -94,16 +96,20 @@ export default {
       socket : io('localhost:3001')
     }
   },
+
   computed: {
     users(){
       return this.$store.state.users;
     },
+
     messages(){
       return this.$store.state.messages;
     },
+
     typing(){
       return this.$store.state.typing;
     },
+    
     notifications(){
       return this.$store.state.notifications;
     }
@@ -175,40 +181,28 @@ export default {
 
   mounted() {
     this.socket.on('MESSAGE', (data) => {
-      this.$store.state.messages.push(data);
+      this.$store.dispatch('addMessage', data);
     });
 
     this.socket.on('ADD_TYPING', (data) => {
-      if(!this.$store.state.typing.includes(data)){
-        this.$store.state.typing.push(data);
-      }
+      this.$store.dispatch('addTyping', data);
     });
 
     this.socket.on('REMOVE_TYPING', (data) => {
-      if(this.$store.state.typing.includes(data)){
-        var i = this.$store.state.typing.indexOf(data);
-        this.$store.state.typing.splice(i, 1);
-      }
+      this.$store.dispatch('removeTyping', data);
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
-      if( this.user_id == data.user_id ) {
-        this.socket_id = data.socket_id
-      }
-      this.$store.state.users.push(data);
+      this.socket_id = data.socket_id
+      this.$store.dispatch('addUser', data);
     });
 
     this.socket.on('DISCONNECTED_USER', (data) => {
-      for (var i = 0; i < this.$store.state.users.length; i++){
-        if (this.$store.state.users[i].socket_id === data) {
-          this.$store.state.users.splice(i, 1);
-          break;
-        }
-      }
+      this.$store.dispatch('removeUser', data);
     });
 
     this.socket.on('NOTIFY', (data) => {
-      this.$store.state.notifications.push(data);
+      this.$store.dispatch('addNotification', data);
     });
   }
 }
