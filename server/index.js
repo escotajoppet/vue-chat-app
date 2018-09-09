@@ -24,7 +24,20 @@ io.on('connection', (socket) => {
     if(data.tagged_user){
       const REGEX = /(:::.*?:::)/;
       const now = moment().unix();
-      data.message = data.message.replace(REGEX, `<span style="color: darkslateblue; background: #def; border-radius: 5px; padding: 2px 5px;" id="${data.socket_id}-${now}" class="user-tags">@${data.tagged_user}</span>`);
+      const message_id = `${data.socket_id}${now}`
+
+      data.message = data.message.replace(REGEX, `<span style="color: darkslateblue; background: #def; border-radius: 5px; padding: 2px 5px;" class="user-tags">@${data.tagged_user}</span>`);
+      data.message_id = message_id
+
+      const notify_data = {
+        notification_id: message_id,
+        tagged_user: data.tagged_user,
+        tagged_socket_id: data.tagged_socket_id,
+        sender: data.sender,
+        sender_socket_id: data.sender_socket_id
+      }
+
+      socket.broadcast.emit('NOTIFY', notify_data);
     }
 
     io.emit('MESSAGE', data);
@@ -41,7 +54,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('NOTIFY_USER', (data) => {
-    data.sender = socket.id;
     socket.broadcast.emit('NOTIFY', data);
   });
 });

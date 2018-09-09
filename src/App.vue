@@ -30,7 +30,7 @@
             <ul id="notifications-list">
               <li class="header">Notifications</li>
               <li v-for="notif in notifications">
-                <a href="#" class="btn-block notifications" v-show="notif.tagged_socket_id == socket_id" v-on:click="tagUser(notif.sender, getUserFromSocketId(notif.sender) )">{{ getUserFromSocketId(notif.sender) }} mentioned you.</a>
+                <a href="#" class="btn-block notifications" v-show="notif.tagged_socket_id == socket_id" v-scroll-to="`#${notif.notification_id}`" v-on:click="removeNotification(notif.notification_id)">{{ notif.sender }} mentioned you.</a>
               </li>
             </ul>
           </div>
@@ -53,7 +53,7 @@
                   </div>
 
                   <div v-show="msg.user != user">
-                    <div class="messages-body">
+                    <div class="messages-body" v-bind:id="msg.message_id">
                       <div class="sender">
                         {{ msg.user }}
                       </div>
@@ -131,14 +131,10 @@ export default {
       const match = REGEX.exec(this.message);
 
       if(match) {
+        data.tagged_socket_id = match['1'];
         data.tagged_user = this.getUserFromSocketId(match['1']);
-
-        var notif_data = {
-          tagged_user: data.tagged_user,
-          tagged_socket_id: match['1']
-        }
-
-        this.socket.emit('NOTIFY_USER', notif_data);
+        data.sender = this.getUserFromSocketId(this.socket_id);
+        data.sender_socket_id = this.socket_id;
       }
 
       this.socket.emit('SEND_MESSAGE', data);
@@ -176,12 +172,19 @@ export default {
       for (var user of this.users) {
         if(user.socket_id == socket_id) return user.user
       }
+    },
+
+    removeNotification(notification_id){
+      this.$store.dispatch('removeNotification', notification_id)
     }
   },
 
   mounted() {
     this.socket.on('MESSAGE', (data) => {
       this.$store.dispatch('addMessage', data);
+
+      var convo_container = document.getElementById('conversation');
+      convo_container.scrollTop = convo_container.scrollHeight;
     });
 
     this.socket.on('ADD_TYPING', (data) => {
@@ -204,7 +207,6 @@ export default {
     });
 
     this.socket.on('NOTIFY', (data) => {
-      
       this.$store.dispatch('addNotification', data);
     });
   }

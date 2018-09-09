@@ -42,6 +42,15 @@ export const store = new Vuex.Store({
 
 		addNotification: (state, data) => {
 			state.notifications.push(data);
+		},
+
+		removeNotification: (state, data) => {
+			for (var i = 0; i < state.notifications.length; i++){
+        if (state.notifications[i].notification_id === data) {
+          state.notifications.splice(i, 1);
+          break;
+        }
+      }
 		}
 	},
 
@@ -68,6 +77,10 @@ export const store = new Vuex.Store({
 
 		addNotification: (context, data) => {
 			context.commit('addNotification', data);
+		},
+
+		removeNotification: (context, data) => {
+			context.commit('removeNotification', data);
 		}
 	}
 });
