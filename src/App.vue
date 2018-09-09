@@ -30,8 +30,7 @@
             <ul id="notifications-list">
               <li class="header">Notifications</li>
               <li v-for="notif in notifications">
-                {{ notif }} - ---{{socket_id}}---
-                <a href="#" class="btn-block notifications" v-show="notif.tagged_socket_id == socket_id">{{ getUserFromSocketId(notif.sender) }} mentioned you.</a>
+                <a href="#" class="btn-block notifications" v-show="notif.tagged_socket_id == socket_id" v-on:click="tagUser(notif.sender, getUserFromSocketId(notif.sender) )">{{ getUserFromSocketId(notif.sender) }} mentioned you.</a>
               </li>
             </ul>
           </div>
@@ -91,6 +90,7 @@ export default {
       user: '',
       socket_id: '',
       message: '',
+      user_id: '',
       socket : io('localhost:3001')
     }
   },
@@ -150,8 +150,10 @@ export default {
 
     logInUser(){
       this.user = this.$refs.user.value;
-
-      this.socket.emit('SIGN_IN', this.user);
+      this.user_id =  Math.floor(100000 + Math.random() * 900000);
+      let user_details = { user: this.user, user_id: this.user_id }
+      
+      this.socket.emit('SIGN_IN', user_details);
     },
 
     logOutUser(){
@@ -190,8 +192,9 @@ export default {
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
-      this.socket_id = data.socket_id
-
+      if( this.user_id == data.user_id ) {
+        this.socket_id = data.socket_id
+      }
       this.$store.state.users.push(data);
     });
 
