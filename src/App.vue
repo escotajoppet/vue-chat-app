@@ -193,7 +193,9 @@ export default {
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
-      this.socket_id = data.socket_id
+      if( this.user_id == data.user_id ) {
+        this.socket_id = data.socket_id
+      }
       this.$store.dispatch('addUser', data);
     });
 
@@ -202,6 +204,7 @@ export default {
     });
 
     this.socket.on('NOTIFY', (data) => {
+      
       this.$store.dispatch('addNotification', data);
     });
   }
