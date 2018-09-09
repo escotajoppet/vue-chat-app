@@ -19,32 +19,60 @@
 
       <div v-show="user" class="card mt-3">
         <div class="row">
-          <div class="col-3" id="users-list">
-            <ul>
-              <li v-for="user_data in users" v-show="user != user_data.user.user">
-                <a href="#" class="btn-block users" v-on:click="tagUser(user_data.user.user)">{{ user_data.user.user }}</a>
+          <div class="col-3" id="users-notifications-list">
+            <ul id="users-list">
+              <li class="header">Users</li>
+              <li v-for="user_data in users" v-show="user != user_data.user">
+                <a href="#" class="btn-block users" v-on:click="tagUser(user_data.socket_id, user_data.user)">{{ user_data.user }}</a>
+              </li>
+            </ul>
+
+            <ul id="notifications-list">
+              <li class="header">Notifications</li>
+              <li v-for="notif in notifications">
+                {{ notif }} - ---{{socket_id}}---
+                <a href="#" class="btn-block notifications" v-show="notif.tagged_socket_id == socket_id">{{ getUserFromSocketId(notif.sender) }} mentioned you.</a>
               </li>
             </ul>
           </div>
-          <div class="col-9" style="padding-left: 0;">
-            <div class="card-body" id="group-chat-container">
+
+          <div class="col-9" id="group-chat-container">
+            <div class="card-body" id="group-chat">
               <div class="card-title">
                 <h6>Vue JS Chat App</h6>
                 <hr>
               </div>
 
-              <div class="card-body" id="messages">
-                <div class="messages" v-for="(msg, index) in messages" :key="index">
-                  <p><span class="font-weight-bold">{{ msg.user }}: </span>{{ msg.message }}</p>
+              <div class="card-body" id="conversation">
+                <div v-for="(msg, index) in messages" :key="index" class="messages">
+                  <div v-show="msg.user == user">
+                    <div class="messages-body my-messages">
+                      <div class="message">
+                        <span v-html="msg.message"></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-show="msg.user != user">
+                    <div class="messages-body">
+                      <div class="sender">
+                        {{ msg.user }}
+                      </div>
+
+                      <div class="message">
+                        <span v-html="msg.message"></span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <p v-if="typing.length">{{ typing.join(', ') }} is typing...</p>
+              <p v-if="typing.length">{{ typing.join(', ') }} {{ typing.length > 1 ? 'are' : 'is' }} typing...</p>
             </div>
 
             <div class="card-footer">
               <form @submit.prevent="sendMessage">
-                <input type="text" v-model="message" v-on:keyup="isTyping" class="form-control">
+                <input type="text" ref="message_field" v-model="message" v-on:keyup="isTyping" class="form-control">
               </form>
             </div>
           </div>
@@ -68,33 +96,52 @@ export default {
   },
   computed: {
     users(){
-      return this.$store.state.users
+      return this.$store.state.users;
     },
     messages(){
-      return this.$store.state.messages
+      return this.$store.state.messages;
     },
     typing(){
-      return this.$store.state.typing
+      return this.$store.state.typing;
+    },
+    notifications(){
+      return this.$store.state.notifications;
     }
   },
+
   methods: {
     sendMessage(e) {
       e.preventDefault();
       
-      if(this.message !== ''){
-        this.socket.emit('SEND_MESSAGE', {
-          user: this.user,
-          message: this.message
-        });
+      if(this.message == '') return;
 
-        this.message = ''
+      let data = { 
+        user: this.user, 
+        message: this.message, 
+        socket_id: this.socket_id 
+      };
+
+      const REGEX = /:::(.*?):::/;
+      const match = REGEX.exec(this.message);
+
+      if(match) {
+        data.tagged_user = this.getUserFromSocketId(match['1']);
+
+        var notif_data = {
+          tagged_user: data.tagged_user,
+          tagged_socket_id: match['1']
+        }
+
+        this.socket.emit('NOTIFY_USER', notif_data);
       }
+
+      this.socket.emit('SEND_MESSAGE', data);
+
+      this.message = '';
     },
 
     isTyping(e){
-      if(e.key != 'Enter'){
-        this.socket.emit('IS_TYPING', this.user);
-      }
+      if(e.key != 'Enter') this.socket.emit('IS_TYPING', this.user);
     },
 
     isNotTyping(e){
@@ -104,24 +151,29 @@ export default {
     logInUser(){
       this.user = this.$refs.user.value;
 
-      this.socket.emit('SIGN_IN', {
-        user: this.user
-      });
+      this.socket.emit('SIGN_IN', this.user);
     },
 
     logOutUser(){
-      this.socket.emit('DISCONNECT', {
-        user: this.user
-      });
+      this.socket.emit('DISCONNECT', this.user);
     },
 
-    tagUser(user){
-      this.message += `<span v-html class="user-tag">@${user}</span>`;
+    tagUser(socket_id, user){
+      this.message += `:::${socket_id}:::`;
+
+      this.$refs.message_field.focus();
+    },
+
+    getUserFromSocketId(socket_id){
+      for (var user of this.users) {
+        if(user.socket_id == socket_id) return user.user
+      }
     }
   },
+
   mounted() {
     this.socket.on('MESSAGE', (data) => {
-      this.$store.state.messages.push(data)
+      this.$store.state.messages.push(data);
     });
 
     this.socket.on('ADD_TYPING', (data) => {
@@ -131,14 +183,15 @@ export default {
     });
 
     this.socket.on('REMOVE_TYPING', (data) => {
-      if(this.$store.state.typing.includes(data.user)){
-        var i = this.$store.state.typing.indexOf(data.user);
+      if(this.$store.state.typing.includes(data)){
+        var i = this.$store.state.typing.indexOf(data);
         this.$store.state.typing.splice(i, 1);
       }
     });
 
     this.socket.on('SIGNED_IN_USER', (data) => {
       this.socket_id = data.socket_id
+
       this.$store.state.users.push(data);
     });
 
@@ -150,50 +203,100 @@ export default {
         }
       }
     });
+
+    this.socket.on('NOTIFY', (data) => {
+      this.$store.state.notifications.push(data);
+    });
   }
 }
 </script>
 
-<style scoped>
-  li{
+<style lang="scss" scoped>
+  $border-style: 1px solid #eee;
+
+  .container{
     padding: 0;
-    border-bottom: 1px solid #eee;
-  }
 
-  ul{
-    padding-left: 15px;
-    text-align: center;
-    list-style: none;
-  }
+    #users-notifications-list{
+      border-right: $border-style; 
+      padding: 0;
 
-  container{
-    padding: 0;
-  }
+      .header{
+        border-bottom: $border-style;
+      }
 
-  #users-list{
-    border-right: 1px solid #eee; 
-    padding: 0;
-  }
+      #users-list{
+        height: 50%;
+        max-height: 50%
+      }
 
-  .group-chat-container{
-    height: 320px;
-  }
+      #notifications-list{
+        height: 50%;
+        max-height: 50%;
 
-  #messages{
-    overflow-y: scroll;
-    height: 215px;
-  }
+        .header{
+          border-top: $border-style;
+        }
+      }
 
-  .users{
-    padding: 10px;
-    text-decoration: none;
-  }
+      a.users, a.notifications{
+        padding: 10px;
+        text-decoration: none;
+      }
 
-  [type=text]{
-    text-align: right;
-  }
+      ul{
+        list-style: none;
+        text-align: center;
+        padding-left: 15px;
+        overflow-y: scroll;
 
-  .user-tag{
-    color: lightgreen;
+        li{
+          border-bottom: $border-style;
+        }
+      }
+    }
+
+    #group-chat-container{
+      padding-left: 0;
+
+      #group-chat{
+        height: 320px;
+      }
+
+      #conversation{
+        overflow-y: scroll;
+        height: 215px;
+        padding: 10px;
+
+        .messages{
+          margin-bottom: 5px;
+
+          .messages-body{
+            width: fit-content;
+            max-width: 250px;
+
+            .sender{
+              font-weight: bold;
+            }
+
+            .message{
+              background: #ededed;
+              border-radius: 5px;
+              padding: 10px;
+              margin-top: 7px;
+            }
+          }
+
+          .my-messages{
+            margin: 0 0 0 auto;
+            text-align: right;
+          }
+        }
+      }
+
+      [type=text]{
+        text-align: right;
+      }
+    }
   }
 </style>

@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
+    "moment": "^2.22.2",
     "nodemon": "^1.18.4",
     "socket.io": "^2.1.1",
     "vuex": "^3.0.1"
